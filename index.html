@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Markdown Pretty Table</title>
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+    }
+    body {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .flex {
+        display: flex;
+        flex-grow: 1;
+    }
+    .flex > label {
+        display: flex;
+        flex-grow: 1;
+        flex-direction: column;
+        flex-shrink: 0;
+        flex-basis: 1px;
+    }
+    .flex > label > span {
+        display: block;
+
+    }
+
+    .flex > label > textarea {
+        flex-grow: 1;
+    }
+    #swapper {
+        font: 400 13.3333px Arial;
+        font-family: monospace;
+        white-space: pre;
+        padding-left: 3px;
+    }
+
+    #swapper > span {
+        position: relative;
+    }
+
+    #swapper > span > span {
+        position: absolute;
+        font-size: 40px;
+        left: -8px;
+        top: -20px;
+        cursor: pointer;
+    }
+</style>
+</head>
+<body>
+<h1>Markdown Pretty Tables</h1>
+
+<ol>
+    <li>Paste your ugly table on the left</li>
+    <li>Swap columns with the arrows if necessary</li>
+    <li>Enjoy your pretty table</li>
+</ol>
+
+<div class="flex">
+    <label>
+        <span>Input</span>
+        <textarea id="input" onkeyup="swaps.length=0;parse()"></textarea>
+    </label>
+    <label>
+        <span>Output</span>
+        <span id="swapper"></span>
+        <textarea id="output" disabled="disabled"></textarea>
+    </label>
+</div>
+<script>
+  const inputElement = document.getElementById('input')
+
+  const outputElement = document.getElementById('output')
+  const swapper = document.getElementById('swapper')
+
+  const drop = function drop(a) {
+    const n = a.length - 1
+    if (!a[n]) {
+      return a.slice(1, n)
+    }
+    return a.slice(1)
+  }
+
+  const maxCol = function maxCol(rows, n) {
+    let max = 3
+    for (const row of rows) {
+      if (row[n]) {
+        max = Math.max(max, row[n].length)
+      }
+    }
+    return max
+  }
+
+  const pad = function pad(value, length) {
+    return value.padEnd(length)
+  }
+
+  const mangeEscapedPipe = function mangleEscapedPipe(s) {
+    return s.replace('\\|', '<&#124;>')
+  }
+
+  const unmangleEscapedPipe = function unmangleEscapedPipe(s) {
+    return s.replace('<&#124;>', '\\|')
+  }
+
+  const swaps = []
+  const swap = function swap(i) {
+    swaps.push(i)
+    parse()
+  }
+
+  /**
+   * Well this is pretty brutal without something like React
+   */
+  const updateSwapper = function updateSwapper(row) {
+    row = row.replace(/[^\\|]/g, ' ')
+    const cols = row.split('|')
+    const html = []
+    for (let i=0; i < cols.length; i++) {
+      if (i === 0) {
+        html.push(' ')
+      } else if (i === cols.length - 2) {
+        html.push(cols[i])
+      } else if (i === cols.length - 1) {
+        html.push(' ')
+      } else {
+        html.push(cols[i])
+        html.push(`<span>&nbsp;<span onclick="swap(${i-1})">↔</span></span>`)
+      }
+
+    }
+    swapper.innerHTML = html.join('')
+  }
+
+  const processSeparator = function processSeparator(sep, length) {
+    let left = false
+    let right = false
+
+    if (sep.slice(0, 1) === ':') {
+      left = true
+      length--;
+    }
+    if (sep.length > 1 && sep.slice(sep.length - 1) === ':') {
+      right = true
+      length--;
+    }
+    return `${left ? ':' : ''}${'-'.padEnd(length, '-')}${right ? ':' : ''}`
+  }
+
+  const processRow = function processRow(row, length) {
+    return row ? row.padEnd(length) : ''.padEnd(length)
+  }
+
+  const parse = function parse() {
+    const input = inputElement.value
+    let rows = input.split('\n').map(r => r.trim()).filter(r => r).map(r => drop(mangeEscapedPipe(r).split('|')).map(c => unmangleEscapedPipe(c).trim()))
+    const cols = rows[0].length
+    for (let nCol=0; nCol < cols; nCol++) {
+      const colLength = maxCol(rows, nCol)
+      for (let nRow=0; nRow < rows.length; nRow++) {
+        if (nRow === 1) {
+          rows[nRow][nCol] = processSeparator(rows[nRow][nCol], colLength)
+        } else {
+          rows[nRow][nCol] = processRow(rows[nRow][nCol], colLength)
+        }
+        console.log(rows[nRow][nCol], nRow, nCol)
+      }
+    }
+    for (const swap of swaps) {
+      for (const row of rows) {
+        const left = row[swap]
+        const right = row[swap + 1]
+        row[swap] = right
+        row[swap + 1] = left
+      }
+    }
+    rows = rows.map(r => `| ${r.join(' | ')} |`)
+
+    updateSwapper(rows[0])
+
+    const output = rows.join('\n')
+    outputElement.value = output + '\n'
+  }
+  inputElement.onpaste = () => { swaps.length = 0; parse() }
+  parse()
+</script>
+</body>
+</html>
