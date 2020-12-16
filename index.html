@@ -95,7 +95,11 @@ MIT license. See https://github.com/voneiden/md-pretty-table/LICENSE.md
 
   const maxCol = function maxCol(rows, n) {
     let max = 3
-    for (const row of rows) {
+    for (let r=0; r < rows.length; r++) {
+      if (r === 1) {
+        continue
+      }
+      const row = rows[r]
       if (row[n]) {
         max = Math.max(max, row[n].length)
       }
